@@ -5,3 +5,6 @@ edition = "2018"
 
 [dependencies]
 lexgen = { git = "https://github.com/osa1/lexgen", rev = "7037ae0" }
+
+[profile.dev.package.lexgen]
+opt-level = 3
