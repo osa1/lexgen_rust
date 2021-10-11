@@ -1,0 +1,7 @@
+[package]
+name = "lexgen_rust"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+lexgen = { git = "https://github.com/osa1/lexgen", rev = "7037ae0" }
