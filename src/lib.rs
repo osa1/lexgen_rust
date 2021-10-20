@@ -29,6 +29,9 @@ pub enum Token<'input> {
 
     /// A single-line or multi-line, doc or non-doc comment
     Comment(&'input str),
+
+    /// A literal
+    Lit(Lit<'input>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -154,6 +157,11 @@ pub enum Delim {
     RBracket,
     LParen,
     RParen,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lit<'input> {
+    Char(&'input str),
 }
 
 lexer! {
@@ -282,6 +290,37 @@ lexer! {
 
         "/*" => |lexer| lexer.switch(LexerRule::MultilineComment),
         "//" => |lexer| lexer.switch(LexerRule::SinglelineComment),
+
+        //
+        // Character literals
+        //
+
+        "'" _ "'" => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Char(match_)))
+        },
+
+        // NB: Escaped double quote is valid!
+        "'\\" ('n' | 'r' | 't' | '\\' | '0' | '\'' | '"') "'" => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Char(match_)))
+        },
+
+        "'\\x" ['0'-'9'] ['0'-'9'] "'" => |lexer| {
+            // TODO: Check that the number is in range
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Char(match_)))
+        },
+
+        "'\\u{" ['0'-'9' 'a'-'f' 'A'-'F']+ "}'" => |lexer| {
+            // TODO: Check that there's at most 6 digits
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Char(match_)))
+        },
+
+        //
+        // End of character literals
+        //
     }
 
     rule SinglelineComment {
@@ -325,5 +364,52 @@ fn comment() {
     let input = "//  /  \n";
     let mut lexer = Lexer::new(input);
     assert_eq!(ignore_pos(lexer.next()), Some(Ok(Token::Comment(input))));
+    assert_eq!(ignore_pos(lexer.next()), None);
+}
+
+#[test]
+fn char_lit() {
+    let input = "'a' '\\n' '\\r' '\\t' '\\\\' '\\0' '\\\'' '\\\"' '\\x11' '\\u{7FFF}'";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'a'"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\n'"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\r'"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\t'"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\\\'"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\0'"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\\''"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\\"'"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\x11'"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Char("'\\u{7FFF}'"))))
+    );
     assert_eq!(ignore_pos(lexer.next()), None);
 }
