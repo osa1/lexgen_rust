@@ -26,6 +26,9 @@ pub enum Token<'input> {
     /// A delimiter:
     /// https://doc.rust-lang.org/reference/tokens.html#delimiters
     Delim(Delim),
+
+    /// A single-line or multi-line, doc or non-doc comment
+    Comment(&'input str),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -276,5 +279,51 @@ lexer! {
         "]" = Token::Delim(Delim::RBracket),
         "{" = Token::Delim(Delim::LBrace),
         "}" = Token::Delim(Delim::RBrace),
+
+        "/*" => |lexer| lexer.switch(LexerRule::MultilineComment),
+        "//" => |lexer| lexer.switch(LexerRule::SinglelineComment),
     }
+
+    rule SinglelineComment {
+        $ | '\n' => |lexer| {
+            let comment = lexer.match_();
+            lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
+        },
+
+        _,
+    }
+
+    rule MultilineComment {
+        "*/" => |lexer| {
+            let comment = lexer.match_();
+            lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
+        },
+
+        _,
+    }
+}
+
+#[cfg(test)]
+fn ignore_pos<A, E>(ret: Option<Result<(usize, A, usize), E>>) -> Option<Result<A, E>> {
+    ret.map(|res| res.map(|(_, a, _)| a))
+}
+
+#[test]
+fn comment() {
+    let input = "/*\n\n*/";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(ignore_pos(lexer.next()), Some(Ok(Token::Comment(input))));
+    assert_eq!(ignore_pos(lexer.next()), None);
+
+    // Terminated at the end of input (no newline)
+    let input = "//  /  ";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(ignore_pos(lexer.next()), Some(Ok(Token::Comment(input))));
+    assert_eq!(ignore_pos(lexer.next()), None);
+
+    // Terminated with newlines
+    let input = "//  /  \n";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(ignore_pos(lexer.next()), Some(Ok(Token::Comment(input))));
+    assert_eq!(ignore_pos(lexer.next()), None);
 }
