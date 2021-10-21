@@ -17,8 +17,6 @@ pub enum Token<'input> {
     /// https://doc.rust-lang.org/reference/identifiers.html
     Id(&'input str),
 
-    String(&'input str),
-
     /// A punctuation:
     /// https://doc.rust-lang.org/reference/tokens.html#punctuation
     Punc(Punc),
@@ -162,10 +160,14 @@ pub enum Delim {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Lit<'input> {
     Char(&'input str),
+    String(&'input str),
 }
 
 lexer! {
     Lexer -> Token<'input>;
+
+    let oct_digit = ['0'-'9'];
+    let hex_digit = ['0'-'9' 'a'-'f' 'A'-'F'];
 
     rule Init {
         "as" = Token::Kw(Kw::As),
@@ -306,13 +308,13 @@ lexer! {
             lexer.return_(Token::Lit(Lit::Char(match_)))
         },
 
-        "'\\x" ['0'-'9'] ['0'-'9'] "'" => |lexer| {
+        "'\\x" $oct_digit $hex_digit "'" => |lexer| {
             // TODO: Check that the number is in range
             let match_ = lexer.match_();
             lexer.return_(Token::Lit(Lit::Char(match_)))
         },
 
-        "'\\u{" ['0'-'9' 'a'-'f' 'A'-'F']+ "}'" => |lexer| {
+        "'\\u{" $hex_digit+ "}'" => |lexer| {
             // TODO: Check that there's at most 6 digits
             let match_ = lexer.match_();
             lexer.return_(Token::Lit(Lit::Char(match_)))
@@ -321,6 +323,12 @@ lexer! {
         //
         // End of character literals
         //
+
+        //
+        // String literals
+        //
+
+        '"' => |lexer| lexer.switch(LexerRule::String),
     }
 
     rule SinglelineComment {
@@ -339,6 +347,43 @@ lexer! {
         },
 
         _,
+    }
+
+    rule String {
+        '"' => |lexer| {
+            let match_ = lexer.match_();
+            lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::String(match_)))
+        },
+
+        '\\' => |lexer| lexer.switch(LexerRule::StringEscape),
+
+        '\r' => |lexer| lexer.switch(LexerRule::StringCR),
+
+        _,
+    }
+
+    rule StringEscape {
+        // Quote escape
+        '\'',
+        '\"',
+
+        // ASCII escape
+        'x' $oct_digit $hex_digit,
+        'n',
+        'r',
+        't',
+        '\\',
+        '0',
+
+        // Unicode escape
+        "u{" $hex_digit+ '}',
+
+        // String continue
+        '\n',
+    }
+
+    rule StringCR {
+        '\n' => |lexer| lexer.switch(LexerRule::String),
     }
 }
 
@@ -412,4 +457,30 @@ fn char_lit() {
         Some(Ok(Token::Lit(Lit::Char("'\\u{7FFF}'"))))
     );
     assert_eq!(ignore_pos(lexer.next()), None);
+}
+
+#[test]
+fn string_lit() {
+    let input = "\"a\" \"a\nb\" \"a\r\nb\"";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::String("\"a\""))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::String("\"a\nb\""))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::String("\"a\r\nb\""))))
+    );
+    assert_eq!(ignore_pos(lexer.next()), None);
+
+    let input = "\"a\r\"";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Err(LexerError { char_idx: 0 }))
+    );
 }
