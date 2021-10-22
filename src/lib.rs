@@ -163,8 +163,14 @@ pub enum Lit<'input> {
     String(&'input str),
 }
 
+#[derive(Debug, Default)]
+struct LexerState {
+    /// Number of `#` read for a raw literal
+    raw_delimiter_size: usize,
+}
+
 lexer! {
-    Lexer -> Token<'input>;
+    Lexer(LexerState) -> Token<'input>;
 
     let oct_digit = ['0'-'9'];
     let hex_digit = ['0'-'9' 'a'-'f' 'A'-'F'];
@@ -324,11 +330,12 @@ lexer! {
         // End of character literals
         //
 
-        //
-        // String literals
-        //
-
         '"' => |lexer| lexer.switch(LexerRule::String),
+
+        "r#" => |lexer| {
+            lexer.state().raw_delimiter_size = 1;
+            lexer.switch(LexerRule::RawLitStart)
+        },
     }
 
     rule SinglelineComment {
@@ -384,6 +391,31 @@ lexer! {
 
     rule StringCR {
         '\n' => |lexer| lexer.switch(LexerRule::String),
+    }
+
+    // NB. `r#` already consumed
+    rule RawLitStart {
+        '#' => |lexer| {
+            lexer.state().raw_delimiter_size += 1;
+            lexer.continue_()
+        },
+
+        // TODO: Check that we saw only one `#`
+        '"' => |lexer| lexer.switch(LexerRule::RawString),
+
+        // TODO: Check that we saw only one `#`
+        $$XID_Start $$XID_Continue* => |lexer| {
+            let match_ = lexer.match_();
+            lexer.switch_and_return(LexerRule::Init, Token::Id(match_))
+        },
+    }
+
+    rule RawString {
+        // TODO
+    }
+
+    rule RawId {
+        // TODO
     }
 }
 
