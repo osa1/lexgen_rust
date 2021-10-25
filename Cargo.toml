@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-lexgen = { git = "https://github.com/osa1/lexgen", rev = "7037ae0" }
+lexgen = { path = "/home/omer/rust/lexgen/crates/lexgen" }
+lexgen_util = { path = "/home/omer/rust/lexgen/crates/lexgen_util" }
 
 [profile.dev.package.lexgen]
 opt-level = 3

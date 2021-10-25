@@ -429,7 +429,7 @@ lexer! {
 }
 
 #[cfg(test)]
-fn ignore_pos<A, E>(ret: Option<Result<(usize, A, usize), E>>) -> Option<Result<A, E>> {
+fn ignore_pos<A, E, L>(ret: Option<Result<(L, A, L), E>>) -> Option<Result<A, E>> {
     ret.map(|res| res.map(|(_, a, _)| a))
 }
 
@@ -520,8 +520,8 @@ fn string_lit() {
 
     let input = "\"a\r\"";
     let mut lexer = Lexer::new(input);
-    assert_eq!(
+    assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(LexerError { char_idx: 0 }))
-    );
+        Some(Err(::lexgen_util::LexerError::InvalidToken { .. }))
+    ));
 }
