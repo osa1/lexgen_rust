@@ -170,6 +170,7 @@ pub enum Delim {
 pub enum Lit<'input> {
     Char(&'input str),
     String(&'input str),
+    Int(&'input str),
 }
 
 #[derive(Debug, Default)]
@@ -178,11 +179,28 @@ struct LexerState {
     raw_delimiter_size: usize,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum CustomError {
+    InvalidIntSuffix,
+}
+
 lexer! {
     Lexer(LexerState) -> Token<'input>;
 
-    let oct_digit = ['0'-'9'];
+    type Error = CustomError;
+
+    // https://doc.rust-lang.org/reference/whitespace.html
+    let whitespace =
+        ['\t' '\n' '\u{B}' '\u{C}' '\r' ' ' '\u{85}' '\u{200E}' '\u{200F}' '\u{2028}' '\u{2029}'];
+
+    let oct_digit = ['0'-'7'];
+    let dec_digit = ['0'-'9'];
     let hex_digit = ['0'-'9' 'a'-'f' 'A'-'F'];
+    let bin_digit = '0' | '1';
+    let int_suffix = ('u' | 'i') '8' | ('u' | 'i') "16" | ('u' | 'i') "32" |
+            ('u' | 'i') "64" | ('u' | 'i') "128" | ('u' | 'i') "size";
+
+    let id = $$XID_Start $$XID_Continue*;
 
     rule Init {
         "as" = Token::Kw(Kw::As),
@@ -238,7 +256,7 @@ lexer! {
         "virtual" = Token::ReservedKw(ReservedKw::Virtual),
         "yield" = Token::ReservedKw(ReservedKw::Yield),
 
-        $$XID_Start $$XID_Continue* => |lexer| {
+        $id => |lexer| {
             let id = lexer.match_();
             lexer.return_(Token::Id(id))
         },
@@ -248,9 +266,7 @@ lexer! {
             lexer.return_(Token::Id(id))
         },
 
-        // https://doc.rust-lang.org/reference/whitespace.html
-        ['\t' '\n' '\u{B}' '\u{C}' '\r' ' ' '\u{85}'
-            '\u{200E}' '\u{200F}' '\u{2028}' '\u{2029}'],
+        $whitespace,
 
         "+" = Token::Punc(Punc::Plus),
         "-" = Token::Punc(Punc::Minus),
@@ -345,6 +361,50 @@ lexer! {
             lexer.state().raw_delimiter_size = 1;
             lexer.switch(LexerRule::RawLitStart)
         },
+
+        //
+        // Integer literals
+        //
+
+        "0b" ($bin_digit | '_')* $int_suffix? => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Int(match_)))
+        },
+
+        "0b" ($bin_digit | '_')* $id =? |lexer| {
+            lexer.return_(Err(CustomError::InvalidIntSuffix))
+        },
+
+        "0o" ($oct_digit | '_')* $int_suffix? => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Int(match_)))
+        },
+
+        "0o" ($oct_digit | '_')* $id =? |lexer| {
+            lexer.return_(Err(CustomError::InvalidIntSuffix))
+        },
+
+        "0x" ($hex_digit | '_')* $int_suffix? => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Int(match_)))
+        },
+
+        "0x" ($hex_digit | '_')* $id =? |lexer| {
+            lexer.return_(Err(CustomError::InvalidIntSuffix))
+        },
+
+        $dec_digit ($dec_digit | '_')* $int_suffix? => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Int(match_)))
+        },
+
+        $dec_digit ($dec_digit | '_')* $id =? |lexer| {
+            lexer.return_(Err(CustomError::InvalidIntSuffix))
+        },
+
+        //
+        // End of integer literlas
+        //
     }
 
     rule SinglelineComment {
@@ -427,6 +487,9 @@ lexer! {
         // TODO
     }
 }
+
+#[cfg(test)]
+use lexgen_util::{LexerError, Loc};
 
 #[cfg(test)]
 fn ignore_pos<A, E, L>(ret: Option<Result<(L, A, L), E>>) -> Option<Result<A, E>> {
@@ -522,6 +585,84 @@ fn string_lit() {
     let mut lexer = Lexer::new(input);
     assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(::lexgen_util::LexerError::InvalidToken { .. }))
+        Some(Err(LexerError::InvalidToken { .. }))
     ));
+}
+
+#[test]
+fn int_lit_valid() {
+    let input = "[1] 123 123i32 123u32 123_u32 0xff 0xff_u8 \
+                 0o70 0o70i16 0b1111_1111_1001_0000 0b1111_1111_1001_0000i64 0b________1 0usize";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Delim(Delim::LBracket))),
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("1"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Delim(Delim::RBracket))),
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("123"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("123i32"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("123u32"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("123_u32"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("0xff"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("0xff_u8"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("0o70"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("0o70i16"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("0b1111_1111_1001_0000"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("0b1111_1111_1001_0000i64"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("0b________1"))))
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("0usize"))))
+    );
+    assert_eq!(ignore_pos(lexer.next()), None);
+}
+
+#[test]
+fn int_lit_invalid() {
+    let input = "0invalidSuffix";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Err(LexerError::Custom(CustomError::InvalidIntSuffix))),
+    );
 }
