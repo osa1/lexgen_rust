@@ -475,23 +475,25 @@ lexer! {
     }
 
     rule StringEscape {
+        '\\' => |lexer| lexer.switch(LexerRule::String),
+
         // Quote escape
-        '\'',
-        '\"',
+        '\'' => |lexer| lexer.switch(LexerRule::String),
+        '\"' => |lexer| lexer.switch(LexerRule::String),
 
         // ASCII escape
-        'x' $oct_digit $hex_digit,
-        'n',
-        'r',
-        't',
-        '\\',
-        '0',
+        'x' $oct_digit $hex_digit => |lexer| lexer.switch(LexerRule::String),
+        'n' => |lexer| lexer.switch(LexerRule::String),
+        'r' => |lexer| lexer.switch(LexerRule::String),
+        't' => |lexer| lexer.switch(LexerRule::String),
+        '\\' => |lexer| lexer.switch(LexerRule::String),
+        '0' => |lexer| lexer.switch(LexerRule::String),
 
         // Unicode escape
-        "u{" $hex_digit+ '}',
+        "u{" $hex_digit+ '}' => |lexer| lexer.switch(LexerRule::String),
 
         // String continue
-        '\n',
+        '\n' => |lexer| lexer.switch(LexerRule::String),
     }
 
     rule StringCR {
@@ -623,6 +625,15 @@ fn string_lit() {
         ignore_pos(lexer.next()),
         Some(Err(LexerError::InvalidToken { .. }))
     ));
+
+    // '"' '\\' '\\' '"'
+    let input = "\"\\\\\"";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::String("\"\\\\\""))))
+    );
+    assert_eq!(ignore_pos(lexer.next()), None);
 }
 
 #[test]
