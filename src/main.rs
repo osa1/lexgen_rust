@@ -26,6 +26,10 @@ pub enum Token<'input> {
     /// https://doc.rust-lang.org/reference/identifiers.html
     Id(&'input str),
 
+    /// A lifetime or label:
+    /// https://doc.rust-lang.org/reference/tokens.html#lifetimes-and-loop-labels
+    LifetimeOrLabel(&'input str),
+
     /// A punctuation:
     /// https://doc.rust-lang.org/reference/tokens.html#punctuation
     Punc(Punc),
@@ -322,6 +326,11 @@ lexer! {
         '_' $$XID_Continue+ => |lexer| {
             let id = lexer.match_();
             lexer.return_(Token::Id(id))
+        },
+
+        "'_" | "'" $id => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::LifetimeOrLabel(match_))
         },
 
         $whitespace,
