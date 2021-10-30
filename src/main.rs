@@ -182,6 +182,63 @@ struct LexerState {
 #[derive(Debug, PartialEq, Eq)]
 pub enum CustomError {
     InvalidIntSuffix,
+    IntWithoutDigit,
+    InvalidDigitForBase,
+}
+
+// - Check that digits match the prefix (e.g. if the match starts with "0b", digits must be 1 or 0)
+// - Check that that is at least one digit
+// - Check that the suffix is valid ("i32", "u64", etc.)
+fn check_int<'input>(match_: &'input str) -> Result<Token, CustomError> {
+    if match_.starts_with("0b") {
+        check_int_base(match_, &match_[2..], |char| char.is_digit(2))
+    } else if match_.starts_with("0o") {
+        check_int_base(match_, &match_[2..], |char| char.is_digit(8))
+    } else if match_.starts_with("0x") {
+        check_int_base(match_, &match_[2..], |char| char.is_digit(16))
+    } else {
+        check_int_base(match_, match_, |char| char.is_digit(10))
+    }
+}
+
+fn check_int_base<'input, F: Fn(char) -> bool>(
+    match_full: &'input str,
+    match_no_prefix: &'input str,
+    is_digit: F,
+) -> Result<Token<'input>, CustomError> {
+    let mut chars = match_no_prefix.char_indices();
+    let mut digit_seen = false;
+
+    let mut suffix = "";
+
+    while let Some((char_idx, char)) = chars.next() {
+        if (char >= '0' && char <= '9')
+            || (char >= 'a' && char <= 'f')
+            || (char >= 'A' && char <= 'F')
+        {
+            if is_digit(char) {
+                digit_seen = true;
+            } else {
+                return Err(CustomError::InvalidDigitForBase);
+            }
+        } else if char == '_' {
+            continue;
+        } else {
+            // Suffix starts
+            suffix = &match_no_prefix[char_idx..];
+            break;
+        }
+    }
+
+    if !digit_seen {
+        return Err(CustomError::IntWithoutDigit);
+    }
+
+    match suffix {
+        "" | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "u128" | "i128"
+        | "usize" | "isize" => Ok(Token::Lit(Lit::Int(match_full))),
+        _ => return Err(CustomError::InvalidIntSuffix),
+    }
 }
 
 lexer! {
@@ -197,6 +254,7 @@ lexer! {
     let dec_digit = ['0'-'9'];
     let hex_digit = ['0'-'9' 'a'-'f' 'A'-'F'];
     let bin_digit = '0' | '1';
+    let digit = $oct_digit | $dec_digit | $hex_digit | $bin_digit;
     let int_suffix = ('u' | 'i') '8' | ('u' | 'i') "16" | ('u' | 'i') "32" |
             ('u' | 'i') "64" | ('u' | 'i') "128" | ('u' | 'i') "size";
 
@@ -366,44 +424,13 @@ lexer! {
         // Integer literals
         //
 
-        "0b" ($bin_digit | '_')* $int_suffix? => |lexer| {
+        ("0b" | "0o" | "0x")? ($digit | '_')* $id? =? |lexer| {
             let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Int(match_)))
-        },
-
-        "0b" ($bin_digit | '_')* $id =? |lexer| {
-            lexer.return_(Err(CustomError::InvalidIntSuffix))
-        },
-
-        "0o" ($oct_digit | '_')* $int_suffix? => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Int(match_)))
-        },
-
-        "0o" ($oct_digit | '_')* $id =? |lexer| {
-            lexer.return_(Err(CustomError::InvalidIntSuffix))
-        },
-
-        "0x" ($hex_digit | '_')* $int_suffix? => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Int(match_)))
-        },
-
-        "0x" ($hex_digit | '_')* $id =? |lexer| {
-            lexer.return_(Err(CustomError::InvalidIntSuffix))
-        },
-
-        $dec_digit ($dec_digit | '_')* $int_suffix? => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Int(match_)))
-        },
-
-        $dec_digit ($dec_digit | '_')* $id =? |lexer| {
-            lexer.return_(Err(CustomError::InvalidIntSuffix))
+            lexer.return_(check_int(match_))
         },
 
         //
-        // End of integer literlas
+        // End of integer literals
         //
     }
 
@@ -659,10 +686,97 @@ fn int_lit_valid() {
 
 #[test]
 fn int_lit_invalid() {
-    let input = "0invalidSuffix";
+    let input = "
+        // invalid suffixes
+
+        0invalidSuffix;
+
+        // uses numbers of the wrong base
+
+        123AFB43;
+        0b0102;
+        0o0581;
+
+        // integers too big for their type (they overflow)
+
+        128_i8;
+        256_u8;
+
+        // bin, hex, and octal literals must have at least one digit
+
+        0b_;
+        0b____;
+    ";
     let mut lexer = Lexer::new(input);
+
+    lexer.next(); // skip comment
+
     assert_eq!(
         ignore_pos(lexer.next()),
         Some(Err(LexerError::Custom(CustomError::InvalidIntSuffix))),
     );
+
+    lexer.next(); // skip ';'
+    lexer.next(); // skip comment
+
+    // 123AFB43
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Err(LexerError::Custom(CustomError::InvalidDigitForBase))),
+    );
+
+    lexer.next(); // skip ';'
+
+    // 0b0102
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Err(LexerError::Custom(CustomError::InvalidDigitForBase))),
+    );
+
+    lexer.next(); // skip ';'
+
+    // 0o0581
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Err(LexerError::Custom(CustomError::InvalidDigitForBase))),
+    );
+
+    lexer.next(); // skip ';'
+    lexer.next(); // skip comment
+
+    // 128_i8
+    // TODO: This overflows, but is that a lexing error?
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("128_i8")))),
+    );
+
+    lexer.next(); // skip ';'
+
+    // 256_u8
+    // TODO: Overflow here
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Int("256_u8")))),
+    );
+
+    lexer.next(); // skip ';'
+    lexer.next(); // skip comment
+
+    // 0b_
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Err(LexerError::Custom(CustomError::IntWithoutDigit))),
+    );
+
+    lexer.next(); // skip ';'
+
+    // 0b____
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Err(LexerError::Custom(CustomError::IntWithoutDigit))),
+    );
+
+    lexer.next(); // skip ';'
+    assert_eq!(ignore_pos(lexer.next()), None);
 }
