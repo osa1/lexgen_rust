@@ -341,3 +341,26 @@ fn byte_lit() {
     );
     assert_eq!(ignore_pos(lexer.next()), None,);
 }
+
+#[test]
+fn raw_byte_string_lit() {
+    let input = r#####" br"foo" br##"foo #"# bar"##   br"\x52" "#####;
+    let mut lexer = Lexer::new(input);
+
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::RawByteString(r#"br"foo""#)))),
+    );
+
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::RawByteString(
+            r###"br##"foo #"# bar"##"###
+        )))),
+    );
+
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::RawByteString(r###"br"\x52""###)))),
+    );
+}

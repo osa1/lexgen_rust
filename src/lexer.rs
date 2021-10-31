@@ -168,6 +168,7 @@ pub enum Lit<'input> {
     Int(&'input str),
     RawString(&'input str),
     Byte(&'input str),
+    RawByteString(&'input str),
 }
 
 #[derive(Debug, Default)]
@@ -433,6 +434,10 @@ lexer! {
         // End of byte literals
         //
 
+        //
+        // String literals
+        //
+
         '"' => |lexer| lexer.switch(LexerRule::String),
 
         "r#" => |lexer| {
@@ -446,6 +451,22 @@ lexer! {
             lexer.state().closing_delimiters_seen = 0;
             lexer.switch(LexerRule::RawString)
         },
+
+        "br#" => |lexer| {
+            lexer.state().raw_delimiter_size = 1;
+            lexer.state().closing_delimiters_seen = 0;
+            lexer.switch(LexerRule::RawByteStringLitStart)
+        },
+
+        "br\"" => |lexer| {
+            lexer.state().raw_delimiter_size = 0;
+            lexer.state().closing_delimiters_seen = 0;
+            lexer.switch(LexerRule::RawByteStringLit)
+        },
+
+        //
+        // End of string literals
+        //
 
         //
         // Integer literals
@@ -572,7 +593,50 @@ lexer! {
         },
     }
 
-    rule RawId {
-        // TODO
-    }
+    rule RawByteStringLitStart {
+        '#' => |lexer| {
+            lexer.state().raw_delimiter_size += 1;
+            lexer.continue_()
+        },
+
+        '"' => |lexer| lexer.switch(LexerRule::RawByteStringLit),
+    },
+
+    rule RawByteStringLit {
+        '"' => |lexer| {
+            if lexer.state().raw_delimiter_size == 0 {
+                let match_ = lexer.match_();
+                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawByteString(match_)))
+            } else {
+                lexer.state().closing_delimiters_seen = 0;
+                lexer.switch(LexerRule::RawByteStringMatchClosingHashes)
+            }
+        },
+
+        $$ascii,
+    },
+
+    rule RawByteStringMatchClosingHashes {
+        '#' => |lexer| {
+            let mut state = lexer.state();
+            state.closing_delimiters_seen += 1;
+            if state.closing_delimiters_seen == state.raw_delimiter_size {
+                let match_ = lexer.match_();
+                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawByteString(match_)))
+            } else {
+                lexer.continue_()
+            }
+        },
+
+        '"' => |lexer| {
+            let mut state = lexer.state();
+            state.closing_delimiters_seen = 0;
+            lexer.continue_()
+        },
+
+        _ => |lexer| {
+            lexer.state().closing_delimiters_seen = 0;
+            lexer.switch(LexerRule::RawByteStringLit)
+        },
+    },
 }
