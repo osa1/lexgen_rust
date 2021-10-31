@@ -1,11 +1,9 @@
-[package]
-name = "lexgen_rust"
-version = "0.1.0"
-edition = "2018"
-
-[dependencies]
-lexgen = "0.8.0"
-lexgen_util = "0.8.0"
+[workspace]
+members = [
+    "crates/compare_lexers",
+    "crates/dump_tokens",
+    "crates/lexgen_rust",
+]
 
 [profile.dev.package.lexgen]
 opt-level = 3

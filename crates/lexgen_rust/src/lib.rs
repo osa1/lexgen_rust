@@ -1,32 +1,35 @@
 use lexgen::lexer;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token<'input> {
     /// A keyword
     Kw(Kw),
 
     /// A weak keyword:
-    /// https://doc.rust-lang.org/reference/keywords.html#weak-keywords
+    /// <https://doc.rust-lang.org/reference/keywords.html#weak-keywords>
     WeakKw(WeakKw),
 
     /// A reserved keyword:
-    /// https://doc.rust-lang.org/reference/keywords.html#reserved-keywords
+    /// <https://doc.rust-lang.org/reference/keywords.html#reserved-keywords>
     ReservedKw(ReservedKw),
 
     /// An identifier:
-    /// https://doc.rust-lang.org/reference/identifiers.html
+    /// <https://doc.rust-lang.org/reference/identifiers.html>
     Id(&'input str),
 
     /// A lifetime or label:
-    /// https://doc.rust-lang.org/reference/tokens.html#lifetimes-and-loop-labels
+    /// <https://doc.rust-lang.org/reference/tokens.html#lifetimes-and-loop-labels>
     LifetimeOrLabel(&'input str),
 
     /// A punctuation:
-    /// https://doc.rust-lang.org/reference/tokens.html#punctuation
+    /// <https://doc.rust-lang.org/reference/tokens.html#punctuation>
     Punc(Punc),
 
     /// A delimiter:
-    /// https://doc.rust-lang.org/reference/tokens.html#delimiters
+    /// <https://doc.rust-lang.org/reference/tokens.html#delimiters>
     Delim(Delim),
 
     /// A single-line or multi-line, doc or non-doc comment
@@ -74,7 +77,7 @@ pub enum Kw {
     While,
 }
 
-/// https://doc.rust-lang.org/reference/keywords.html#weak-keywords
+/// <https://doc.rust-lang.org/reference/keywords.html#weak-keywords>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WeakKw {
     MacroRules,
@@ -82,7 +85,7 @@ pub enum WeakKw {
     StaticLifetime,
 }
 
-/// https://doc.rust-lang.org/reference/keywords.html#reserved-keywords
+/// <https://doc.rust-lang.org/reference/keywords.html#reserved-keywords>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReservedKw {
     Abstract,
@@ -100,7 +103,7 @@ pub enum ReservedKw {
     Yield,
 }
 
-/// https://doc.rust-lang.org/reference/tokens.html#punctuation
+/// <https://doc.rust-lang.org/reference/tokens.html#punctuation>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Punc {
     Plus,
@@ -150,7 +153,7 @@ pub enum Punc {
     Question,
 }
 
-/// https://doc.rust-lang.org/reference/tokens.html#delimiters
+/// <https://doc.rust-lang.org/reference/tokens.html#delimiters>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Delim {
     LBrace,

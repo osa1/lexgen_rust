@@ -1,0 +1,8 @@
+[package]
+name = "compare_lexers"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lexgen_rust = { path = "../lexgen_rust" }
+rustc-ap-rustc_lexer = "727.0.0"

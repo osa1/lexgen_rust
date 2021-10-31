@@ -1,0 +1,7 @@
+[package]
+name = "dump_tokens"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lexgen_rust = { path = "../lexgen_rust" }

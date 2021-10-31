@@ -1,9 +1,4 @@
-mod lexer;
-
-#[cfg(test)]
-mod tests;
-
-use lexer::{Lexer, Token};
+use lexgen_rust::{Lexer, Token};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

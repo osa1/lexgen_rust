@@ -1,6 +1,6 @@
-use crate::lexer::{CustomError, Delim, Lexer, Lit, Token};
+use crate::{CustomError, Delim, Lexer, Lit, Token};
 
-use lexgen_util::{LexerError, Loc};
+use lexgen_util::LexerError;
 
 fn ignore_pos<A, E, L>(ret: Option<Result<(L, A, L), E>>) -> Option<Result<A, E>> {
     ret.map(|res| res.map(|(_, a, _)| a))
