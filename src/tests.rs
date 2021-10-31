@@ -1,6 +1,6 @@
 use crate::lexer::{CustomError, Delim, Lexer, Lit, Token};
 
-use lexgen_util::LexerError;
+use lexgen_util::{LexerError, Loc};
 
 fn ignore_pos<A, E, L>(ret: Option<Result<(L, A, L), E>>) -> Option<Result<A, E>> {
     ret.map(|res| res.map(|(_, a, _)| a))
@@ -303,5 +303,41 @@ fn raw_string_lit() {
         Some(Ok(Token::Lit(Lit::RawString(r#####"r"\x52""#####))))
     );
 
+    assert_eq!(ignore_pos(lexer.next()), None,);
+}
+
+// TODO: Enable this test
+// #[test]
+// fn char_fail() {
+//     let input = "'\n'";
+//     let mut lexer = Lexer::new(input);
+//     assert_eq!(
+//         ignore_pos(lexer.next()),
+//         Some(Err(LexerError::InvalidToken {
+//             location: Loc {
+//                 line: 0,
+//                 col: 0,
+//                 byte_idx: 0
+//             }
+//         }))
+//     );
+// }
+
+#[test]
+fn byte_lit() {
+    let input = r#"b'a' b'\t' b'\xAA'"#;
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Byte("b'a'")))),
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Byte("b'\\t'")))),
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Byte("b'\\xAA'")))),
+    );
     assert_eq!(ignore_pos(lexer.next()), None,);
 }

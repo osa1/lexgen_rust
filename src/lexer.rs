@@ -167,6 +167,7 @@ pub enum Lit<'input> {
     String(&'input str),
     Int(&'input str),
     RawString(&'input str),
+    Byte(&'input str),
 }
 
 #[derive(Debug, Default)]
@@ -390,6 +391,7 @@ lexer! {
         // Character literals
         //
 
+        // TODO: This allows newline, tab etc. in single quotes
         "'" _ "'" => |lexer| {
             let match_ = lexer.match_();
             lexer.return_(Token::Lit(Lit::Char(match_)))
@@ -415,6 +417,20 @@ lexer! {
 
         //
         // End of character literals
+        //
+
+        //
+        // Byte literals
+        //
+
+        // TODO: Exclude newline, tab, ... without '\\'
+        "b'" ($$ascii | "\\n" | "\\r" | "\\t" | "\\\\" | "\\0" | "\\'" | "\\x" $hex_digit $hex_digit) "'" => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Byte(match_)))
+        },
+
+        //
+        // End of byte literals
         //
 
         '"' => |lexer| lexer.switch(LexerRule::String),
