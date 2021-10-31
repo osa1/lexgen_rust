@@ -175,12 +175,16 @@ pub enum Lit<'input> {
     Char(&'input str),
     String(&'input str),
     Int(&'input str),
+    RawString(&'input str),
 }
 
 #[derive(Debug, Default)]
 struct LexerState {
     /// Number of `#` read for a raw literal
     raw_delimiter_size: usize,
+
+    /// Number of closing `#`s seen so far. Used when terminating raw strings.
+    closing_delimiters_seen: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -426,7 +430,14 @@ lexer! {
 
         "r#" => |lexer| {
             lexer.state().raw_delimiter_size = 1;
+            lexer.state().closing_delimiters_seen = 0;
             lexer.switch(LexerRule::RawLitStart)
+        },
+
+        "r\"" => |lexer| {
+            lexer.state().raw_delimiter_size = 0;
+            lexer.state().closing_delimiters_seen = 0;
+            lexer.switch(LexerRule::RawString)
         },
 
         //
@@ -507,7 +518,6 @@ lexer! {
             lexer.continue_()
         },
 
-        // TODO: Check that we saw only one `#`
         '"' => |lexer| lexer.switch(LexerRule::RawString),
 
         // TODO: Check that we saw only one `#`
@@ -518,7 +528,41 @@ lexer! {
     }
 
     rule RawString {
-        // TODO
+        '"' => |lexer| {
+            if lexer.state().raw_delimiter_size == 0 {
+                let match_ = lexer.match_();
+                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawString(match_)))
+            } else {
+                lexer.state().closing_delimiters_seen = 0;
+                lexer.switch(LexerRule::RawStringMatchClosingHashes)
+            }
+        },
+
+        _,
+    }
+
+    rule RawStringMatchClosingHashes {
+        '#' => |lexer| {
+            let mut state = lexer.state();
+            state.closing_delimiters_seen += 1;
+            if state.closing_delimiters_seen == state.raw_delimiter_size {
+                let match_ = lexer.match_();
+                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawString(match_)))
+            } else {
+                lexer.continue_()
+            }
+        },
+
+        '"' => |lexer| {
+            let mut state = lexer.state();
+            state.closing_delimiters_seen = 0;
+            lexer.continue_()
+        },
+
+        _ => |lexer| {
+            lexer.state().closing_delimiters_seen = 0;
+            lexer.switch(LexerRule::RawString)
+        },
     }
 
     rule RawId {
@@ -799,4 +843,37 @@ fn int_lit_invalid() {
 
     lexer.next(); // skip ';'
     assert_eq!(ignore_pos(lexer.next()), None);
+}
+
+#[test]
+fn raw_string_lit() {
+    let input = r#####"
+        r"foo" r#""foo""# r##"foo #"# bar"## r"\x52"
+    "#####;
+
+    let mut lexer = Lexer::new(input);
+
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::RawString(r#####"r"foo""#####))))
+    );
+
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::RawString(r#####"r#""foo""#"#####))))
+    );
+
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::RawString(
+            r#####"r##"foo #"# bar"##"#####
+        ))))
+    );
+
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::RawString(r#####"r"\x52""#####))))
+    );
+
+    assert_eq!(ignore_pos(lexer.next()), None,);
 }
