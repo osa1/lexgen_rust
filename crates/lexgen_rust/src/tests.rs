@@ -1,6 +1,6 @@
 use crate::{CustomError, Delim, Lexer, Lit, Token};
 
-use lexgen_util::LexerError;
+use lexgen_util::{LexerError, LexerErrorKind};
 
 fn ignore_pos<A, E, L>(ret: Option<Result<(L, A, L), E>>) -> Option<Result<A, E>> {
     ret.map(|res| res.map(|(_, a, _)| a))
@@ -95,7 +95,10 @@ fn string_lit() {
     let mut lexer = Lexer::new(input);
     assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(LexerError::InvalidToken { .. }))
+        Some(Err(LexerError {
+            kind: LexerErrorKind::InvalidToken,
+            ..
+        }))
     ));
 
     // '"' '\\' '\\' '"'
@@ -203,35 +206,47 @@ fn int_lit_invalid() {
 
     lexer.next(); // skip comment
 
-    assert_eq!(
+    assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(LexerError::Custom(CustomError::InvalidIntSuffix))),
-    );
+        Some(Err(LexerError {
+            kind: LexerErrorKind::Custom(CustomError::InvalidIntSuffix),
+            ..
+        })),
+    ));
 
     lexer.next(); // skip ';'
     lexer.next(); // skip comment
 
     // 123AFB43
-    assert_eq!(
+    assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(LexerError::Custom(CustomError::InvalidDigitForBase))),
-    );
+        Some(Err(LexerError {
+            kind: LexerErrorKind::Custom(CustomError::InvalidDigitForBase),
+            ..
+        })),
+    ));
 
     lexer.next(); // skip ';'
 
     // 0b0102
-    assert_eq!(
+    assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(LexerError::Custom(CustomError::InvalidDigitForBase))),
-    );
+        Some(Err(LexerError {
+            kind: LexerErrorKind::Custom(CustomError::InvalidDigitForBase),
+            ..
+        })),
+    ));
 
     lexer.next(); // skip ';'
 
     // 0o0581
-    assert_eq!(
+    assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(LexerError::Custom(CustomError::InvalidDigitForBase))),
-    );
+        Some(Err(LexerError {
+            kind: LexerErrorKind::Custom(CustomError::InvalidDigitForBase),
+            ..
+        })),
+    ));
 
     lexer.next(); // skip ';'
     lexer.next(); // skip comment
@@ -256,18 +271,24 @@ fn int_lit_invalid() {
     lexer.next(); // skip comment
 
     // 0b_
-    assert_eq!(
+    assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(LexerError::Custom(CustomError::IntWithoutDigit))),
-    );
+        Some(Err(LexerError {
+            kind: LexerErrorKind::Custom(CustomError::IntWithoutDigit),
+            ..
+        })),
+    ));
 
     lexer.next(); // skip ';'
 
     // 0b____
-    assert_eq!(
+    assert!(matches!(
         ignore_pos(lexer.next()),
-        Some(Err(LexerError::Custom(CustomError::IntWithoutDigit))),
-    );
+        Some(Err(LexerError {
+            kind: LexerErrorKind::Custom(CustomError::IntWithoutDigit),
+            ..
+        })),
+    ));
 
     lexer.next(); // skip ';'
     assert_eq!(ignore_pos(lexer.next()), None);
