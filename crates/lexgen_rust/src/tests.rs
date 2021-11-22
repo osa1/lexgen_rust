@@ -360,7 +360,7 @@ fn byte_lit() {
         ignore_pos(lexer.next()),
         Some(Ok(Token::Lit(Lit::Byte("b'\\xAA'")))),
     );
-    assert_eq!(ignore_pos(lexer.next()), None,);
+    assert_eq!(ignore_pos(lexer.next()), None);
 }
 
 #[test]
@@ -384,4 +384,24 @@ fn raw_byte_string_lit() {
         ignore_pos(lexer.next()),
         Some(Ok(Token::Lit(Lit::RawByteString(r###"br"\x52""###)))),
     );
+}
+
+#[test]
+fn float() {
+    let input = "1.17549435e-38 2.0 0f64";
+    let mut lexer = Lexer::new(input);
+
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Float("1.17549435e-38")))),
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Float("2.0")))),
+    );
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::Float("0f64")))),
+    );
+    assert_eq!(ignore_pos(lexer.next()), None);
 }

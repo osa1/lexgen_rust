@@ -172,6 +172,7 @@ pub enum Lit<'input> {
     RawString(&'input str),
     Byte(&'input str),
     RawByteString(&'input str),
+    Float(&'input str),
 }
 
 #[derive(Debug, Default)]
@@ -263,6 +264,10 @@ lexer! {
             ('u' | 'i') "64" | ('u' | 'i') "128" | ('u' | 'i') "size";
 
     let id = $$XID_Start $$XID_Continue*;
+
+    let dec_literal = $dec_digit ($dec_digit | '_')*;
+    let float_exponent = ('e' | 'E') ('+' | '-')? ($dec_digit | '_')* $dec_digit ($dec_digit | '_')*;
+    let float_suffix = "f32" | "f64";
 
     rule Init {
         "as" = Token::Kw(Kw::As),
@@ -469,6 +474,37 @@ lexer! {
 
         //
         // End of string literals
+        //
+
+        //
+        // Float literals
+        //
+        // Float literals need to be defined before int literals to lex a literal like `0f64` as
+        // float rather than integer with a suffix.
+        //
+
+        $dec_literal '.' => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Float(match_)))
+        },
+
+        $dec_literal $float_exponent => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Float(match_)))
+        },
+
+        $dec_literal '.' $dec_literal $float_exponent? => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Float(match_)))
+        },
+
+        $dec_literal ('.' $dec_literal)? $float_exponent? $float_suffix => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::Float(match_)))
+        },
+
+        //
+        // End of float literals
         //
 
         //
