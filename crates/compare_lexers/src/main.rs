@@ -216,6 +216,7 @@ fn _lexgen_token_to_rustc_token(lexgen_tokens: &[Token]) -> Vec<rustc_lexer::Tok
                         err: None,
                     },
                     lexgen_rust::Lit::Float(_) => todo!(),
+                    lexgen_rust::Lit::ByteString(_) => todo!(),
                 };
 
                 // TODO: suffix_start

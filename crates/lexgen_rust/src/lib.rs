@@ -173,6 +173,7 @@ pub enum Lit<'input> {
     Byte(&'input str),
     RawByteString(&'input str),
     Float(&'input str),
+    ByteString(&'input str),
 }
 
 #[derive(Debug, Default)]
@@ -268,6 +269,10 @@ lexer! {
     let dec_literal = $dec_digit ($dec_digit | '_')*;
     let float_exponent = ('e' | 'E') ('+' | '-')? ($dec_digit | '_')* $dec_digit ($dec_digit | '_')*;
     let float_suffix = "f32" | "f64";
+
+    let ascii_for_string = ($$ascii # ['"' '\\' '\r']);
+    let byte_escape = ("\\x" $hex_digit $hex_digit) | '\n' | '\r' | '\t' | "\\\\" | '\0';
+    let string_continue = "\\\n";
 
     rule Init {
         "as" = Token::Kw(Kw::As),
@@ -436,6 +441,11 @@ lexer! {
         "b'" ($$ascii | "\\n" | "\\r" | "\\t" | "\\\\" | "\\0" | "\\'" | "\\x" $hex_digit $hex_digit) "'" => |lexer| {
             let match_ = lexer.match_();
             lexer.return_(Token::Lit(Lit::Byte(match_)))
+        },
+
+        "b\"" ($ascii_for_string | $byte_escape | $string_continue | "\r\n")* '"' => |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(Token::Lit(Lit::ByteString(match_)))
         },
 
         //
