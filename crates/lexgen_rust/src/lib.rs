@@ -275,7 +275,7 @@ lexer! {
     let float_suffix = "f32" | "f64";
 
     let ascii_for_string = ($$ascii # ['"' '\\' '\r']);
-    let byte_escape = ("\\x" $hex_digit $hex_digit) | "\\n" | "\\r" | "\\t" | "\\\\" | "\\0";
+    let byte_escape = ("\\x" $hex_digit $hex_digit) | "\\n" | "\\r" | "\\t" | "\\\\" | "\\0" | "\\\"" | "\\'";
     let string_continue = "\\\n";
 
     rule Init {
@@ -443,7 +443,7 @@ lexer! {
         //
 
         // TODO: Exclude newline, tab, ... without '\\'
-        "b'" ($$ascii | "\\n" | "\\r" | "\\t" | "\\\\" | "\\0" | "\\'" | "\\x" $hex_digit $hex_digit) "'" => |lexer| {
+        "b'" ($$ascii | $byte_escape) "'" => |lexer| {
             let match_ = lexer.match_();
             lexer.return_(Token::Lit(Lit::Byte(match_)))
         },
