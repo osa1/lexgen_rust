@@ -162,6 +162,9 @@ fn _lexgen_token_to_rustc_token(lexgen_tokens: &[Token]) -> Vec<rustc_lexer::Tok
                 Punc::Question => {
                     tokens.push(rustc_lexer::TokenKind::Question);
                 }
+                Punc::Tilde => {
+                    tokens.push(rustc_lexer::TokenKind::Tilde);
+                }
             },
             Token::Delim(delim) => match delim {
                 Delim::LBrace => {

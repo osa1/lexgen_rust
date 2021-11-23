@@ -151,6 +151,10 @@ pub enum Punc {
     Pound,
     Dollar,
     Question,
+
+    // Not in the spec yet, but used in const_deref feature:
+    // https://github.com/rust-lang/rust/issues/88955
+    Tilde,
 }
 
 /// <https://doc.rust-lang.org/reference/tokens.html#delimiters>
@@ -390,6 +394,7 @@ lexer! {
         "#" = Token::Punc(Punc::Pound),
         "$" = Token::Punc(Punc::Dollar),
         "?" = Token::Punc(Punc::Question),
+        "~" = Token::Punc(Punc::Tilde),
 
         "(" = Token::Delim(Delim::LParen),
         ")" = Token::Delim(Delim::RParen),
