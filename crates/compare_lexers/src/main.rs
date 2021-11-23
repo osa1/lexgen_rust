@@ -32,6 +32,7 @@ fn lexgen_token_to_rustc_token(lexgen_tokens: &[Token]) -> Vec<rustc_lexer::Toke
 
     for lexgen_token in lexgen_tokens {
         match lexgen_token {
+            Token::Whitespace => tokens.push(rustc_lexer::TokenKind::Whitespace),
             Token::Kw(_) | Token::WeakKw(_) | Token::ReservedKw(_) | Token::Id(_) => {
                 tokens.push(rustc_lexer::TokenKind::Ident);
             }

@@ -5,6 +5,8 @@ mod tests;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token<'input> {
+    Whitespace,
+
     /// A keyword
     Kw(Kw),
 
@@ -347,7 +349,7 @@ lexer! {
             lexer.return_(Token::LifetimeOrLabel(match_))
         },
 
-        $whitespace,
+        $whitespace+ = Token::Whitespace,
 
         "+" = Token::Punc(Punc::Plus),
         "-" = Token::Punc(Punc::Minus),
