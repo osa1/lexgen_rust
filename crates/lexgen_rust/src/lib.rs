@@ -275,7 +275,7 @@ lexer! {
     let float_suffix = "f32" | "f64";
 
     let ascii_for_string = ($$ascii # ['"' '\\' '\r']);
-    let byte_escape = ("\\x" $hex_digit $hex_digit) | '\n' | '\r' | '\t' | "\\\\" | '\0';
+    let byte_escape = ("\\x" $hex_digit $hex_digit) | "\\n" | "\\r" | "\\t" | "\\\\" | "\\0";
     let string_continue = "\\\n";
 
     rule Init {

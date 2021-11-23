@@ -405,3 +405,30 @@ fn float() {
     );
     assert_eq!(ignore_pos(lexer.next()), None);
 }
+
+#[test]
+fn byte_string() {
+    let input = r#####"b"abc""#####;
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::ByteString(input)))),
+    );
+    assert_eq!(ignore_pos(lexer.next()), None);
+
+    let input = r#####"b"\x01""#####;
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::ByteString(input)))),
+    );
+    assert_eq!(ignore_pos(lexer.next()), None);
+
+    let input = r#####"b"\n""#####;
+    let mut lexer = Lexer::new(input);
+    assert_eq!(
+        ignore_pos(lexer.next()),
+        Some(Ok(Token::Lit(Lit::ByteString(input)))),
+    );
+    assert_eq!(ignore_pos(lexer.next()), None);
+}
