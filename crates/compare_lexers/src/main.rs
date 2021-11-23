@@ -1,12 +1,33 @@
-use lexgen_rust::{Delim, Punc, Token};
+use lexgen_rust::{self, Delim, Punc, Token};
 use rustc_ap_rustc_lexer as rustc_lexer;
 
 fn main() {
     let mut files: Vec<String> = std::env::args().collect();
     files.remove(0);
+
+    for file in files {
+        let file_contents = std::fs::read_to_string(file).unwrap();
+
+        let rustc_tokens: Vec<rustc_lexer::Token> = rustc_lexer::tokenize(&file_contents).collect();
+        let mut rustc_tokens_iter = rustc_tokens.iter();
+
+        for tok in lexgen_rust::Lexer::new(&file_contents) {
+            let (start, tok, end) = tok.unwrap();
+            let tok_rustc_toks = lexgen_token_to_rustc_token(std::slice::from_ref(&tok));
+            for tok_rustc_tok in tok_rustc_toks {
+                assert_eq!(
+                    Some(tok_rustc_tok),
+                    rustc_tokens_iter.next().map(|t| t.kind),
+                    "{:?} - {:?}",
+                    start,
+                    end
+                );
+            }
+        }
+    }
 }
 
-fn _lexgen_token_to_rustc_token(lexgen_tokens: &[Token]) -> Vec<rustc_lexer::TokenKind> {
+fn lexgen_token_to_rustc_token(lexgen_tokens: &[Token]) -> Vec<rustc_lexer::TokenKind> {
     let mut tokens: Vec<rustc_lexer::TokenKind> = Vec::with_capacity(lexgen_tokens.len() * 2);
 
     for lexgen_token in lexgen_tokens {
@@ -218,7 +239,10 @@ fn _lexgen_token_to_rustc_token(lexgen_tokens: &[Token]) -> Vec<rustc_lexer::Tok
                         n_hashes: 0,
                         err: None,
                     },
-                    lexgen_rust::Lit::Float(_) => todo!(),
+                    lexgen_rust::Lit::Float(_) => rustc_lexer::LiteralKind::Float {
+                        base: rustc_lexer::Base::Decimal, // TODO
+                        empty_exponent: true,             // TODO
+                    },
                     lexgen_rust::Lit::ByteString(_) => todo!(),
                 };
 
