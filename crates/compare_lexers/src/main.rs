@@ -15,12 +15,14 @@ fn main() {
             let (start, tok, end) = tok.unwrap();
             let tok_rustc_toks = lexgen_token_to_rustc_token(std::slice::from_ref(&tok));
             for tok_rustc_tok in tok_rustc_toks {
-                assert_eq!(
-                    Some(tok_rustc_tok),
-                    rustc_tokens_iter.next().map(|t| t.kind),
-                    "{:?} - {:?}",
+                let rustc_token = rustc_tokens_iter.next().unwrap().kind;
+                assert!(
+                    token_eq(rustc_token, tok_rustc_tok),
+                    "lexgen={:?}, rustc={:?}, {:?} - {:?}",
+                    tok_rustc_tok,
+                    rustc_token,
                     start,
-                    end
+                    end,
                 );
             }
         }
@@ -257,4 +259,94 @@ fn lexgen_token_to_rustc_token(lexgen_tokens: &[Token]) -> Vec<rustc_lexer::Toke
     }
 
     tokens
+}
+
+fn token_eq(tok1: rustc_lexer::TokenKind, tok2: rustc_lexer::TokenKind) -> bool {
+    match (tok1, tok2) {
+        (
+            rustc_lexer::TokenKind::LineComment { .. },
+            rustc_lexer::TokenKind::LineComment { .. },
+        ) => true,
+        (
+            rustc_lexer::TokenKind::BlockComment {
+                doc_style: _,
+                terminated: _,
+            },
+            rustc_lexer::TokenKind::BlockComment {
+                doc_style: _,
+                terminated: _,
+            },
+        ) => true,
+        (rustc_lexer::TokenKind::Whitespace, rustc_lexer::TokenKind::Whitespace) => true,
+        (rustc_lexer::TokenKind::Ident, rustc_lexer::TokenKind::Ident) => true,
+        (rustc_lexer::TokenKind::RawIdent, rustc_lexer::TokenKind::RawIdent) => true,
+        (rustc_lexer::TokenKind::UnknownPrefix, rustc_lexer::TokenKind::UnknownPrefix) => true,
+        (
+            rustc_lexer::TokenKind::Literal {
+                kind: kind1,
+                suffix_start: _,
+            },
+            rustc_lexer::TokenKind::Literal {
+                kind: kind2,
+                suffix_start: _,
+            },
+        ) => match (kind1, kind2) {
+            (rustc_lexer::LiteralKind::Int { .. }, rustc_lexer::LiteralKind::Int { .. }) => true,
+            (rustc_lexer::LiteralKind::Float { .. }, rustc_lexer::LiteralKind::Float { .. }) => {
+                true
+            }
+            (rustc_lexer::LiteralKind::Char { .. }, rustc_lexer::LiteralKind::Char { .. }) => true,
+            (rustc_lexer::LiteralKind::Byte { .. }, rustc_lexer::LiteralKind::Byte { .. }) => true,
+            (rustc_lexer::LiteralKind::Str { .. }, rustc_lexer::LiteralKind::Str { .. }) => true,
+            (
+                rustc_lexer::LiteralKind::ByteStr { .. },
+                rustc_lexer::LiteralKind::ByteStr { .. },
+            ) => true,
+            (rustc_lexer::LiteralKind::RawStr { .. }, rustc_lexer::LiteralKind::RawStr { .. }) => {
+                true
+            }
+            (
+                rustc_lexer::LiteralKind::RawByteStr { .. },
+                rustc_lexer::LiteralKind::RawByteStr { .. },
+            ) => true,
+            (_, _) => false,
+        },
+        (
+            rustc_lexer::TokenKind::Lifetime {
+                starts_with_number: _,
+            },
+            rustc_lexer::TokenKind::Lifetime {
+                starts_with_number: _,
+            },
+        ) => true,
+        (rustc_lexer::TokenKind::Semi, rustc_lexer::TokenKind::Semi) => true,
+        (rustc_lexer::TokenKind::Comma, rustc_lexer::TokenKind::Comma) => true,
+        (rustc_lexer::TokenKind::Dot, rustc_lexer::TokenKind::Dot) => true,
+        (rustc_lexer::TokenKind::OpenParen, rustc_lexer::TokenKind::OpenParen) => true,
+        (rustc_lexer::TokenKind::CloseParen, rustc_lexer::TokenKind::CloseParen) => true,
+        (rustc_lexer::TokenKind::OpenBrace, rustc_lexer::TokenKind::OpenBrace) => true,
+        (rustc_lexer::TokenKind::CloseBrace, rustc_lexer::TokenKind::CloseBrace) => true,
+        (rustc_lexer::TokenKind::OpenBracket, rustc_lexer::TokenKind::OpenBracket) => true,
+        (rustc_lexer::TokenKind::CloseBracket, rustc_lexer::TokenKind::CloseBracket) => true,
+        (rustc_lexer::TokenKind::At, rustc_lexer::TokenKind::At) => true,
+        (rustc_lexer::TokenKind::Pound, rustc_lexer::TokenKind::Pound) => true,
+        (rustc_lexer::TokenKind::Tilde, rustc_lexer::TokenKind::Tilde) => true,
+        (rustc_lexer::TokenKind::Question, rustc_lexer::TokenKind::Question) => true,
+        (rustc_lexer::TokenKind::Colon, rustc_lexer::TokenKind::Colon) => true,
+        (rustc_lexer::TokenKind::Dollar, rustc_lexer::TokenKind::Dollar) => true,
+        (rustc_lexer::TokenKind::Eq, rustc_lexer::TokenKind::Eq) => true,
+        (rustc_lexer::TokenKind::Bang, rustc_lexer::TokenKind::Bang) => true,
+        (rustc_lexer::TokenKind::Lt, rustc_lexer::TokenKind::Lt) => true,
+        (rustc_lexer::TokenKind::Gt, rustc_lexer::TokenKind::Gt) => true,
+        (rustc_lexer::TokenKind::Minus, rustc_lexer::TokenKind::Minus) => true,
+        (rustc_lexer::TokenKind::And, rustc_lexer::TokenKind::And) => true,
+        (rustc_lexer::TokenKind::Or, rustc_lexer::TokenKind::Or) => true,
+        (rustc_lexer::TokenKind::Plus, rustc_lexer::TokenKind::Plus) => true,
+        (rustc_lexer::TokenKind::Star, rustc_lexer::TokenKind::Star) => true,
+        (rustc_lexer::TokenKind::Slash, rustc_lexer::TokenKind::Slash) => true,
+        (rustc_lexer::TokenKind::Caret, rustc_lexer::TokenKind::Caret) => true,
+        (rustc_lexer::TokenKind::Percent, rustc_lexer::TokenKind::Percent) => true,
+        (rustc_lexer::TokenKind::Unknown, rustc_lexer::TokenKind::Unknown) => true,
+        (_, _) => false,
+    }
 }
