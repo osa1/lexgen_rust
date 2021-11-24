@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-lexgen = "0.8.0"
-lexgen_util = "0.8.0"
+lexgen = { path = "/home/omer/rust/lexgen/crates/lexgen" }
+lexgen_util = { path = "/home/omer/rust/lexgen/crates/lexgen_util" }
