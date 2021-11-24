@@ -538,13 +538,21 @@ lexer! {
         //
     }
 
+    // https://github.com/osa1/lexgen/issues/29#issuecomment-977550895
     rule SinglelineComment {
-        $ | '\n' => |lexer| {
+        _ # '\n' => |lexer| {
+            if lexer.peek() == Some('\n') {
+                let comment = lexer.match_();
+                lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
+            } else {
+                lexer.continue_()
+            }
+        },
+
+        $ => |lexer| {
             let comment = lexer.match_();
             lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
         },
-
-        _,
     }
 
     rule MultilineComment {
