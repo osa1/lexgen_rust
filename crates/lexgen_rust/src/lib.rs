@@ -1,10 +1,13 @@
 use lexgen::lexer;
+pub use lexgen_util::Loc;
 
 #[cfg(test)]
 mod tests;
 
+pub type Slice = (Loc, Loc);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Token<'input> {
+pub enum Token {
     Whitespace,
 
     /// A keyword
@@ -20,11 +23,11 @@ pub enum Token<'input> {
 
     /// An identifier:
     /// <https://doc.rust-lang.org/reference/identifiers.html>
-    Id(&'input str),
+    Id(Slice),
 
     /// A lifetime or label:
     /// <https://doc.rust-lang.org/reference/tokens.html#lifetimes-and-loop-labels>
-    LifetimeOrLabel(&'input str),
+    LifetimeOrLabel(Slice),
 
     /// A punctuation:
     /// <https://doc.rust-lang.org/reference/tokens.html#punctuation>
@@ -35,10 +38,10 @@ pub enum Token<'input> {
     Delim(Delim),
 
     /// A single-line or multi-line, doc or non-doc comment
-    Comment(&'input str),
+    Comment(Slice),
 
     /// A literal
-    Lit(Lit<'input>),
+    Lit(Lit),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -171,15 +174,15 @@ pub enum Delim {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Lit<'input> {
-    Char(&'input str),
-    String(&'input str),
-    Int(&'input str),
-    RawString(&'input str),
-    Byte(&'input str),
-    RawByteString(&'input str),
-    Float(&'input str),
-    ByteString(&'input str),
+pub enum Lit {
+    Char(Slice),
+    String(Slice),
+    Int(Slice),
+    RawString(Slice),
+    Byte(Slice),
+    RawByteString(Slice),
+    Float(Slice),
+    ByteString(Slice),
 }
 
 #[derive(Debug, Default)]
@@ -198,6 +201,7 @@ pub enum CustomError {
     InvalidDigitForBase,
 }
 
+/*
 // - Check that digits match the prefix (e.g. if the match starts with "0b", digits must be 1 or 0)
 // - Check that that is at least one digit
 // - Check that the suffix is valid ("i32", "u64", etc.)
@@ -213,11 +217,11 @@ fn check_int<'input>(match_: &'input str) -> Result<Token, CustomError> {
     }
 }
 
-fn check_int_base<'input, F: Fn(char) -> bool>(
-    match_full: &'input str,
-    match_no_prefix: &'input str,
+fn check_int_base<F: Fn(char) -> bool>(
+    match_full: &str,
+    match_no_prefix: &str,
     is_digit: F,
-) -> Result<Token<'input>, CustomError> {
+) -> Result<Token, CustomError> {
     let mut chars = match_no_prefix.char_indices();
     let mut digit_seen = false;
 
@@ -252,9 +256,10 @@ fn check_int_base<'input, F: Fn(char) -> bool>(
         _ => return Err(CustomError::InvalidIntSuffix),
     }
 }
+*/
 
 lexer! {
-    pub Lexer(LexerState) -> Token<'input>;
+    pub Lexer(LexerState) -> Token;
 
     type Error = CustomError;
 
@@ -335,17 +340,17 @@ lexer! {
         "yield" = Token::ReservedKw(ReservedKw::Yield),
 
         $id => |lexer| {
-            let id = lexer.match_();
+            let id = lexer.match_loc();
             lexer.return_(Token::Id(id))
         },
 
         '_' $$XID_Continue+ => |lexer| {
-            let id = lexer.match_();
+            let id = lexer.match_loc();
             lexer.return_(Token::Id(id))
         },
 
         "'_" | "'" $id => |lexer| {
-            let match_ = lexer.match_();
+            let match_ = lexer.match_loc();
             lexer.return_(Token::LifetimeOrLabel(match_))
         },
 
@@ -414,26 +419,26 @@ lexer! {
 
         // TODO: This allows newline, tab etc. in single quotes
         "'" _ "'" => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Char(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Char(match_loc)))
         },
 
         // NB: Escaped double quote is valid!
         "'\\" ('n' | 'r' | 't' | '\\' | '0' | '\'' | '"') "'" => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Char(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Char(match_loc)))
         },
 
         "'\\x" $oct_digit $hex_digit "'" => |lexer| {
             // TODO: Check that the number is in range
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Char(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Char(match_loc)))
         },
 
         "'\\u{" $hex_digit+ "}'" => |lexer| {
             // TODO: Check that there's at most 6 digits
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Char(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Char(match_loc)))
         },
 
         //
@@ -446,13 +451,13 @@ lexer! {
 
         // TODO: Exclude newline, tab, ... without '\\'
         "b'" ($$ascii | $byte_escape) "'" => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Byte(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Byte(match_loc)))
         },
 
         "b\"" ($ascii_for_string | $byte_escape | $string_continue | "\r\n")* '"' => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::ByteString(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::ByteString(match_loc)))
         },
 
         //
@@ -501,23 +506,23 @@ lexer! {
         //
 
         $dec_literal '.' => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Float(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Float(match_loc)))
         },
 
         $dec_literal $float_exponent => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Float(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Float(match_loc)))
         },
 
         $dec_literal '.' $dec_literal $float_exponent? => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Float(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Float(match_loc)))
         },
 
         $dec_literal ('.' $dec_literal)? $float_exponent? $float_suffix => |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(Token::Lit(Lit::Float(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Float(match_loc)))
         },
 
         //
@@ -528,9 +533,9 @@ lexer! {
         // Integer literals
         //
 
-        ("0b" | "0o" | "0x")? ($digit | '_')* $id? =? |lexer| {
-            let match_ = lexer.match_();
-            lexer.return_(check_int(match_))
+        ("0b" | "0o" | "0x")? ($digit | '_')* $id? => |lexer| {
+            let match_loc = lexer.match_loc();
+            lexer.return_(Token::Lit(Lit::Int(match_loc)))
         },
 
         //
@@ -542,7 +547,7 @@ lexer! {
     rule SinglelineComment {
         _ # '\n' => |lexer| {
             if lexer.peek() == Some('\n') {
-                let comment = lexer.match_();
+                let comment = lexer.match_loc();
                 lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
             } else {
                 lexer.continue_()
@@ -550,14 +555,14 @@ lexer! {
         },
 
         $ => |lexer| {
-            let comment = lexer.match_();
+            let comment = lexer.match_loc();
             lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
         },
     }
 
     rule MultilineComment {
         "*/" => |lexer| {
-            let comment = lexer.match_();
+            let comment = lexer.match_loc();
             lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
         },
 
@@ -566,8 +571,8 @@ lexer! {
 
     rule String {
         '"' => |lexer| {
-            let match_ = lexer.match_();
-            lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::String(match_)))
+            let match_loc = lexer.match_loc();
+            lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::String(match_loc)))
         },
 
         '\\' => |lexer| lexer.switch(LexerRule::StringEscape),
@@ -614,16 +619,16 @@ lexer! {
 
         // TODO: Check that we saw only one `#`
         $$XID_Start $$XID_Continue* => |lexer| {
-            let match_ = lexer.match_();
-            lexer.switch_and_return(LexerRule::Init, Token::Id(match_))
+            let match_loc = lexer.match_loc();
+            lexer.switch_and_return(LexerRule::Init, Token::Id(match_loc))
         },
     }
 
     rule RawString {
         '"' => |lexer| {
             if lexer.state().raw_delimiter_size == 0 {
-                let match_ = lexer.match_();
-                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawString(match_)))
+                let match_loc = lexer.match_loc();
+                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawString(match_loc)))
             } else {
                 lexer.state().closing_delimiters_seen = 0;
                 lexer.switch(LexerRule::RawStringMatchClosingHashes)
@@ -638,8 +643,8 @@ lexer! {
             let mut state = lexer.state();
             state.closing_delimiters_seen += 1;
             if state.closing_delimiters_seen == state.raw_delimiter_size {
-                let match_ = lexer.match_();
-                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawString(match_)))
+                let match_loc = lexer.match_loc();
+                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawString(match_loc)))
             } else {
                 lexer.continue_()
             }
@@ -669,8 +674,8 @@ lexer! {
     rule RawByteStringLit {
         '"' => |lexer| {
             if lexer.state().raw_delimiter_size == 0 {
-                let match_ = lexer.match_();
-                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawByteString(match_)))
+                let match_loc = lexer.match_loc();
+                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawByteString(match_loc)))
             } else {
                 lexer.state().closing_delimiters_seen = 0;
                 lexer.switch(LexerRule::RawByteStringMatchClosingHashes)
@@ -685,8 +690,8 @@ lexer! {
             let mut state = lexer.state();
             state.closing_delimiters_seen += 1;
             if state.closing_delimiters_seen == state.raw_delimiter_size {
-                let match_ = lexer.match_();
-                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawByteString(match_)))
+                let match_loc = lexer.match_loc();
+                lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawByteString(match_loc)))
             } else {
                 lexer.continue_()
             }
