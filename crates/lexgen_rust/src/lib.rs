@@ -517,7 +517,7 @@ lexer! {
             }
         },
 
-        $ => |lexer| {
+        '\n' | $ => |lexer| {
             lexer.switch_and_return(LexerRule::Init, Token::Comment)
         },
     }
