@@ -36,6 +36,19 @@ fn comment() {
     let mut lexer = Lexer::new(input);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment("//  /  "))));
     assert_eq!(next(&mut lexer), None);
+
+    // Empty comment, terminated with eof
+    let input = "//";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Comment("//"))));
+    assert_eq!(next(&mut lexer), None);
+
+    // Empty comment, terminated with eol
+    let input = "//\n";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Comment("//"))));
+    assert_eq!(next(&mut lexer), None);
+
 }
 
 #[test]
