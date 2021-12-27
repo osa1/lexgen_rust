@@ -51,6 +51,29 @@ fn comment() {
 }
 
 #[test]
+fn documentation() {
+    let input = "/// asdf";
+    let mut lexer = Lexer::new(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
+    assert_eq!(next(&mut lexer), None);
+
+    let input = "//! asdf";
+    let mut lexer = Lexer::new(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
+    assert_eq!(next(&mut lexer), None);
+
+    let input = "/** asdf */";
+    let mut lexer = Lexer::new(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
+    assert_eq!(next(&mut lexer), None);
+
+    let input = "/*! asdf */";
+    let mut lexer = Lexer::new(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
+    assert_eq!(next(&mut lexer), None);
+}
+
+#[test]
 fn char_lit() {
     let input = "'a' '\\n' '\\r' '\\t' '\\\\' '\\0' '\\\'' '\\\"' '\\x11' '\\u{7FFF}'";
     let mut lexer = Lexer::new(input.chars());

@@ -38,6 +38,9 @@ pub enum Token {
     /// A single-line or multi-line, doc or non-doc comment
     Comment,
 
+    /// A documentation comment
+    Documentation,
+
     /// A literal
     Lit(Lit),
 }
@@ -186,6 +189,18 @@ pub enum Lit {
     ByteString,
 }
 
+#[derive(Debug)]
+enum CommentOrDoc {
+    Comment,
+    Doc,
+}
+
+impl Default for CommentOrDoc {
+    fn default() -> Self {
+        CommentOrDoc::Comment // arbitrary, should not be used
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct LexerState {
     /// Number of `#` read for a raw literal
@@ -193,6 +208,8 @@ pub struct LexerState {
 
     /// Number of closing `#`s seen so far. Used when terminating raw strings.
     closing_delimiters_seen: usize,
+
+    comment_or_doc: CommentOrDoc,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -405,8 +422,25 @@ lexer! {
         "{" = Token::Delim(Delim::LBrace),
         "}" = Token::Delim(Delim::RBrace),
 
-        "/*" => |lexer| lexer.switch(LexerRule::MultilineComment),
-        "//" => |lexer| lexer.switch(LexerRule::SinglelineComment),
+        "/*" => |lexer| {
+            lexer.state().comment_or_doc = CommentOrDoc::Comment;
+            lexer.switch(LexerRule::MultilineCommentOrDoc)
+        },
+
+        "/**" | "/*!" => |lexer| {
+            lexer.state().comment_or_doc = CommentOrDoc::Doc;
+            lexer.switch(LexerRule::MultilineCommentOrDoc)
+        },
+
+        "//" => |lexer| {
+            lexer.state().comment_or_doc = CommentOrDoc::Comment;
+            lexer.switch(LexerRule::SinglelineCommentOrDoc)
+        },
+
+        "///" | "//!" => |lexer| {
+            lexer.state().comment_or_doc = CommentOrDoc::Doc;
+            lexer.switch(LexerRule::SinglelineCommentOrDoc)
+        },
 
         //
         // Character literals
@@ -508,23 +542,37 @@ lexer! {
     }
 
     // https://github.com/osa1/lexgen/issues/29#issuecomment-977550895
-    rule SinglelineComment {
+    rule SinglelineCommentOrDoc {
         _ # '\n' => |lexer| {
             if lexer.peek() == Some('\n') {
-                lexer.switch_and_return(LexerRule::Init, Token::Comment)
+                let token = match lexer.state().comment_or_doc {
+                    CommentOrDoc::Comment => Token::Comment,
+                    CommentOrDoc::Doc => Token::Documentation,
+                };
+                lexer.switch_and_return(LexerRule::Init, token)
             } else {
                 lexer.continue_()
             }
         },
 
+        // TODO: '\n' below includes the newline character in the comment,
+        // unlike the '\n' above
         '\n' | $ => |lexer| {
-            lexer.switch_and_return(LexerRule::Init, Token::Comment)
+            let token = match lexer.state().comment_or_doc {
+                CommentOrDoc::Comment => Token::Comment,
+                CommentOrDoc::Doc => Token::Documentation,
+            };
+            lexer.switch_and_return(LexerRule::Init, token)
         },
     }
 
-    rule MultilineComment {
+    rule MultilineCommentOrDoc {
         "*/" => |lexer| {
-            lexer.switch_and_return(LexerRule::Init, Token::Comment)
+            let token = match lexer.state().comment_or_doc {
+                CommentOrDoc::Comment => Token::Comment,
+                CommentOrDoc::Doc => Token::Documentation,
+            };
+            lexer.switch_and_return(LexerRule::Init, token)
         },
 
         _,
