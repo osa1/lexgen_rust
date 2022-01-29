@@ -60,14 +60,6 @@ fn lexgen_token_to_rustc_token(lexgen_tokens: &[Token]) -> Vec<rustc_lexer::Toke
                     tokens.push(rustc_lexer::TokenKind::Or);
                     tokens.push(rustc_lexer::TokenKind::Or);
                 }
-                Punc::Shl => {
-                    tokens.push(rustc_lexer::TokenKind::Lt);
-                    tokens.push(rustc_lexer::TokenKind::Lt);
-                }
-                Punc::Shr => {
-                    tokens.push(rustc_lexer::TokenKind::Gt);
-                    tokens.push(rustc_lexer::TokenKind::Gt);
-                }
                 Punc::PlusEq => {
                     tokens.push(rustc_lexer::TokenKind::Plus);
                     tokens.push(rustc_lexer::TokenKind::Eq);
