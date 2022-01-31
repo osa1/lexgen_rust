@@ -1,4 +1,4 @@
-use crate::{CustomError, Delim, Lexer, Lit, Token};
+use crate::{CustomError, Delim, Lexer, Lit, Punc, Token};
 
 use lexgen_util::{LexerError, LexerErrorKind};
 
@@ -48,7 +48,6 @@ fn comment() {
     let mut lexer = Lexer::new(input);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment("//"))));
     assert_eq!(next(&mut lexer), None);
-
 }
 
 #[test]
@@ -372,4 +371,13 @@ fn byte_string() {
         Some(Ok(Token::Lit(Lit::ByteString(input)))),
     );
     assert_eq!(next(&mut lexer), None);
+}
+
+#[test]
+fn int_float_range_confusion() {
+    let input = "1. 1..";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Float("1.")))),);
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Int("1")))),);
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Punc(Punc::DotDot))),);
 }

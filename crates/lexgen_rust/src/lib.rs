@@ -500,7 +500,7 @@ lexer! {
         // float rather than integer with a suffix.
         //
 
-        $dec_literal '.' => |lexer| {
+        $dec_literal '.' > ((_ # '.') | $) => |lexer| {
             let match_ = lexer.match_();
             lexer.return_(Token::Lit(Lit::Float(match_)))
         },
