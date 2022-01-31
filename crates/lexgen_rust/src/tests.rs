@@ -1,4 +1,4 @@
-use crate::{CustomError, Delim, Lexer, Lit, Token};
+use crate::{CustomError, Delim, Lexer, Lit, Punc, Token};
 
 use lexgen_util::{LexerError, LexerErrorKind};
 
@@ -70,6 +70,18 @@ fn documentation() {
     let input = "/*! asdf */";
     let mut lexer = Lexer::new(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
+    assert_eq!(next(&mut lexer), None);
+
+    // Empty comment, terminated with eof
+    let input = "//";
+    let mut lexer = Lexer::new(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
+    assert_eq!(next(&mut lexer), None);
+
+    // Empty comment, terminated with eol
+    let input = "//\n";
+    let mut lexer = Lexer::new(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
     assert_eq!(next(&mut lexer), None);
 }
 
@@ -376,3 +388,12 @@ fn byte_string() {
     assert_eq!(next(&mut lexer), None);
 }
 */
+
+#[test]
+fn int_float_range_confusion() {
+    let input = "1. 1..";
+    let mut lexer = Lexer::new(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Float))),);
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Int))),);
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Punc(Punc::DotDot))),);
+}

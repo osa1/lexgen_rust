@@ -512,7 +512,7 @@ lexer! {
         // float rather than integer with a suffix.
         //
 
-        $dec_literal '.' = Token::Lit(Lit::Float),
+        $dec_literal '.' > ((_ # '.') | $) = Token::Lit(Lit::Float),
 
         $dec_literal $float_exponent = Token::Lit(Lit::Float),
 
@@ -539,21 +539,7 @@ lexer! {
 
     // https://github.com/osa1/lexgen/issues/29#issuecomment-977550895
     rule SinglelineCommentOrDoc {
-        _ # '\n' => |lexer| {
-            if lexer.peek() == Some('\n') {
-                let token = match lexer.state().comment_or_doc {
-                    CommentOrDoc::Comment => Token::Comment,
-                    CommentOrDoc::Doc => Token::Documentation,
-                };
-                lexer.switch_and_return(LexerRule::Init, token)
-            } else {
-                lexer.continue_()
-            }
-        },
-
-        // TODO: '\n' below includes the newline character in the comment,
-        // unlike the '\n' above
-        '\n' | $ => |lexer| {
+        (_ # '\n')* > ('\n' | $) => |lexer| {
             let token = match lexer.state().comment_or_doc {
                 CommentOrDoc::Comment => Token::Comment,
                 CommentOrDoc::Doc => Token::Documentation,
