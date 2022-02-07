@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-lexgen = { git = "https://github.com/osa1/lexgen", rev = "462873e" }
-lexgen_util = { git = "https://github.com/osa1/lexgen", rev = "462873e" }
+lexgen = { git = "https://github.com/osa1/lexgen", rev = "ce0c916" }
+lexgen_util = { git = "https://github.com/osa1/lexgen", rev = "ce0c916" }

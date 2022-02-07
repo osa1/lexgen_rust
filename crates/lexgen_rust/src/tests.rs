@@ -21,31 +21,31 @@ fn next<I: Iterator<Item = char> + Clone>(
 #[test]
 fn comment() {
     let input = "/*\n\n*/";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
     assert_eq!(next(&mut lexer), None);
 
     // Terminated at the end of input (no newline)
     let input = "//  /  ";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
     assert_eq!(next(&mut lexer), None);
 
     // Terminated with newlines
     let input = "//  /  \n";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
     assert_eq!(next(&mut lexer), None);
 
     // Empty comment, terminated with eof
     let input = "//";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
     assert_eq!(next(&mut lexer), None);
 
     // Empty comment, terminated with eol
     let input = "//\n";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
     assert_eq!(next(&mut lexer), None);
 }
@@ -53,34 +53,34 @@ fn comment() {
 #[test]
 fn documentation() {
     let input = "/// asdf";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
     assert_eq!(next(&mut lexer), None);
 
     let input = "//! asdf";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
     assert_eq!(next(&mut lexer), None);
 
     let input = "/** asdf */";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
     assert_eq!(next(&mut lexer), None);
 
     let input = "/*! asdf */";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
     assert_eq!(next(&mut lexer), None);
 
     // Empty comment, terminated with eof
     let input = "//";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
     assert_eq!(next(&mut lexer), None);
 
     // Empty comment, terminated with eol
     let input = "//\n";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
     assert_eq!(next(&mut lexer), None);
 }
@@ -88,7 +88,7 @@ fn documentation() {
 #[test]
 fn char_lit() {
     let input = "'a' '\\n' '\\r' '\\t' '\\\\' '\\0' '\\\'' '\\\"' '\\x11' '\\u{7FFF}'";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Char))));
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Char))));
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Char))));
@@ -105,14 +105,14 @@ fn char_lit() {
 #[test]
 fn string_lit() {
     let input = "\"a\" \"a\nb\" \"a\r\nb\"";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::String))));
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::String))));
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::String))));
     assert_eq!(next(&mut lexer), None);
 
     let input = "\"a\r\"";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert!(matches!(
         next(&mut lexer),
         Some(Err(LexerError {
@@ -123,7 +123,7 @@ fn string_lit() {
 
     // '"' '\\' '\\' '"'
     let input = "\"\\\\\"";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::String))));
     assert_eq!(next(&mut lexer), None);
 }
@@ -132,7 +132,7 @@ fn string_lit() {
 fn int_lit_valid() {
     let input = "[1] 123 123i32 123u32 123_u32 0xff 0xff_u8 \
                  0o70 0o70i16 0b1111_1111_1001_0000 0b1111_1111_1001_0000i64 0b________1 0usize";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Delim(Delim::LBracket))),);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Int))));
     assert_eq!(next(&mut lexer), Some(Ok(Token::Delim(Delim::RBracket))),);
@@ -175,7 +175,7 @@ fn int_lit_invalid() {
         0b_;
         0b____;
     ";
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new_from_iter(input);
 
     next(&mut lexer); // skip comment
 
@@ -267,7 +267,7 @@ fn raw_string_lit() {
         r"foo" r#""foo""# r##"foo #"# bar"## r"\x52"
     "#####;
 
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new_from_iter(input);
 
     assert_eq!(
         next(&mut lexer),
@@ -298,7 +298,7 @@ fn raw_string_lit() {
 // #[test]
 // fn char_fail() {
 //     let input = "'\n'";
-//     let mut lexer = Lexer::new(input);
+//     let mut lexer = Lexer::new_from_iter(input);
 //     assert_eq!(
 //         next(&mut lexer),
 //         Some(Err(LexerError::InvalidToken {
@@ -314,7 +314,7 @@ fn raw_string_lit() {
 #[test]
 fn byte_lit() {
     let input = r#"b'a' b'\t' b'\xAA'"#;
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new_from_iter(input);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Byte("b'a'")))),);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Byte("b'\\t'")))),);
     assert_eq!(
@@ -327,7 +327,7 @@ fn byte_lit() {
 #[test]
 fn raw_byte_string_lit() {
     let input = r#####" br"foo" br##"foo #"# bar"##   br"\x52" "#####;
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new_from_iter(input);
 
     assert_eq!(
         next(&mut lexer),
@@ -350,7 +350,7 @@ fn raw_byte_string_lit() {
 #[test]
 fn float() {
     let input = "1.17549435e-38 2.0 0f64";
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new_from_iter(input);
 
     assert_eq!(
         next(&mut lexer),
@@ -364,7 +364,7 @@ fn float() {
 #[test]
 fn byte_string() {
     let input = r#####"b"abc""#####;
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new_from_iter(input);
     assert_eq!(
         next(&mut lexer),
         Some(Ok(Token::Lit(Lit::ByteString(input)))),
@@ -372,7 +372,7 @@ fn byte_string() {
     assert_eq!(next(&mut lexer), None);
 
     let input = r#####"b"\x01""#####;
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new_from_iter(input);
     assert_eq!(
         next(&mut lexer),
         Some(Ok(Token::Lit(Lit::ByteString(input)))),
@@ -380,7 +380,7 @@ fn byte_string() {
     assert_eq!(next(&mut lexer), None);
 
     let input = r#####"b"\n""#####;
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Lexer::new_from_iter(input);
     assert_eq!(
         next(&mut lexer),
         Some(Ok(Token::Lit(Lit::ByteString(input)))),
@@ -392,7 +392,7 @@ fn byte_string() {
 #[test]
 fn int_float_range_confusion() {
     let input = "1. 1..";
-    let mut lexer = Lexer::new(input.chars());
+    let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Float))),);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Int))),);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Punc(Punc::DotDot))),);
