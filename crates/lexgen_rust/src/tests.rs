@@ -7,8 +7,8 @@ fn ignore_pos<A, E, L>(ret: Option<Result<(L, A, L), E>>) -> Option<Result<A, E>
 }
 
 // Skips whitespace
-fn next<'input>(
-    lexer: &mut Lexer<'input>,
+fn next<'input, I: Clone + Iterator<Item = char>>(
+    lexer: &mut Lexer<'input, I>,
 ) -> Option<Result<Token<'input>, LexerError<CustomError>>> {
     match ignore_pos(lexer.next()) {
         None => None,
