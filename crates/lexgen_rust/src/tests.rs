@@ -20,6 +20,11 @@ fn next<'input>(
 
 #[test]
 fn comment() {
+    let input = "/**/";
+    let mut lexer = Lexer::new(input);
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Comment(input))));
+    assert_eq!(next(&mut lexer), None);
+
     let input = "/*\n\n*/";
     let mut lexer = Lexer::new(input);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment(input))));
