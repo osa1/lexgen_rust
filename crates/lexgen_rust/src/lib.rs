@@ -423,7 +423,12 @@ lexer! {
             lexer.switch(LexerRule::MultilineCommentOrDoc)
         },
 
-        "/**" | "/*!" => |lexer| {
+        "/**" > (_ # '/') => |lexer| {
+            lexer.state().comment_or_doc = CommentOrDoc::Doc;
+            lexer.switch(LexerRule::MultilineCommentOrDoc)
+        },
+
+        "/*!" => |lexer| {
             lexer.state().comment_or_doc = CommentOrDoc::Doc;
             lexer.switch(LexerRule::MultilineCommentOrDoc)
         },
