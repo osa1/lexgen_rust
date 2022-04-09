@@ -91,6 +91,19 @@ fn documentation() {
 }
 
 #[test]
+fn nested_comment() {
+    let input = "/*/**/*/";
+    let mut lexer = Lexer::new_from_iter(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
+    assert_eq!(next(&mut lexer), None);
+
+    let input = "/*! /*! // */ */";
+    let mut lexer = Lexer::new_from_iter(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Documentation)));
+    assert_eq!(next(&mut lexer), None);
+}
+
+#[test]
 fn char_lit() {
     let input = "'a' '\\n' '\\r' '\\t' '\\\\' '\\0' '\\\'' '\\\"' '\\x11' '\\u{7FFF}'";
     let mut lexer = Lexer::new_from_iter(input.chars());

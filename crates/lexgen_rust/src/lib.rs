@@ -207,7 +207,12 @@ pub struct LexerState {
     /// Number of closing `#`s seen so far. Used when terminating raw strings.
     closing_delimiters_seen: usize,
 
+    /// Lexing a comment or documentation?
     comment_or_doc: CommentOrDoc,
+
+    /// Level (nesting) of the current block comment. `0` when not lexing a block comment,
+    /// `1` or more when lexing a block comment.
+    block_comment_level: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -420,16 +425,19 @@ lexer! {
 
         "/*" => |lexer| {
             lexer.state().comment_or_doc = CommentOrDoc::Comment;
+            lexer.state().block_comment_level = 1;
             lexer.switch(LexerRule::MultilineCommentOrDoc)
         },
 
         "/**" > (_ # '/') => |lexer| {
             lexer.state().comment_or_doc = CommentOrDoc::Doc;
+            lexer.state().block_comment_level = 1;
             lexer.switch(LexerRule::MultilineCommentOrDoc)
         },
 
         "/*!" => |lexer| {
             lexer.state().comment_or_doc = CommentOrDoc::Doc;
+            lexer.state().block_comment_level = 1;
             lexer.switch(LexerRule::MultilineCommentOrDoc)
         },
 
@@ -554,12 +562,22 @@ lexer! {
     }
 
     rule MultilineCommentOrDoc {
+        "/*" => |lexer| {
+            lexer.state().block_comment_level += 1;
+            lexer.continue_()
+        },
+
         "*/" => |lexer| {
-            let token = match lexer.state().comment_or_doc {
-                CommentOrDoc::Comment => Token::Comment,
-                CommentOrDoc::Doc => Token::Documentation,
-            };
-            lexer.switch_and_return(LexerRule::Init, token)
+            lexer.state().block_comment_level -= 1;
+            if lexer.state().block_comment_level == 0 {
+                let token = match lexer.state().comment_or_doc {
+                    CommentOrDoc::Comment => Token::Comment,
+                    CommentOrDoc::Doc => Token::Documentation,
+                };
+                lexer.switch_and_return(LexerRule::Init, token)
+            } else {
+                lexer.continue_()
+            }
         },
 
         _,
