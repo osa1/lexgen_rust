@@ -189,6 +189,10 @@ pub struct LexerState {
 
     /// Number of closing `#`s seen so far. Used when terminating raw strings.
     closing_delimiters_seen: usize,
+
+    /// Level (nesting) of the current block comment. `0` when not lexing a block comment,
+    /// `1` or more when lexing a block comment.
+    block_comment_level: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -405,7 +409,10 @@ lexer! {
         "{" = Token::Delim(Delim::LBrace),
         "}" = Token::Delim(Delim::RBrace),
 
-        "/*" => |lexer| lexer.switch(LexerRule::MultilineComment),
+        "/*" => |lexer| {
+            lexer.state().block_comment_level = 1;
+            lexer.switch(LexerRule::MultilineComment)
+        },
         "//" => |lexer| lexer.switch(LexerRule::SinglelineComment),
 
         //
@@ -547,9 +554,19 @@ lexer! {
     }
 
     rule MultilineComment {
+        "/*" => |lexer| {
+            lexer.state().block_comment_level += 1;
+            lexer.continue_()
+        },
+
         "*/" => |lexer| {
-            let comment = lexer.match_();
-            lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
+            lexer.state().block_comment_level -= 1;
+            if lexer.state().block_comment_level == 0 {
+                let comment = lexer.match_();
+                lexer.switch_and_return(LexerRule::Init, Token::Comment(comment))
+            } else {
+                lexer.continue_()
+            }
         },
 
         _,
