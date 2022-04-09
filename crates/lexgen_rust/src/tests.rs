@@ -20,6 +20,11 @@ fn next<I: Iterator<Item = char> + Clone>(
 
 #[test]
 fn comment() {
+    let input = "/**/";
+    let mut lexer = Lexer::new_from_iter(input.chars());
+    assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
+    assert_eq!(next(&mut lexer), None);
+
     let input = "/*\n\n*/";
     let mut lexer = Lexer::new_from_iter(input.chars());
     assert_eq!(next(&mut lexer), Some(Ok(Token::Comment)));
