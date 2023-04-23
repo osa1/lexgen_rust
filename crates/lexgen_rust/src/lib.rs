@@ -205,15 +205,15 @@ pub enum CustomError {
 // - Check that digits match the prefix (e.g. if the match starts with "0b", digits must be 1 or 0)
 // - Check that that is at least one digit
 // - Check that the suffix is valid ("i32", "u64", etc.)
-fn check_int<'input>(match_: &'input str) -> Result<Token, CustomError> {
-    if match_.starts_with("0b") {
-        check_int_base(match_, &match_[2..], |char| char.is_digit(2))
-    } else if match_.starts_with("0o") {
-        check_int_base(match_, &match_[2..], |char| char.is_digit(8))
-    } else if match_.starts_with("0x") {
-        check_int_base(match_, &match_[2..], |char| char.is_digit(16))
+fn check_int(match_: &str) -> Result<Token, CustomError> {
+    if let Some(rest) = match_.strip_prefix("0b") {
+        check_int_base(match_, rest, |char| char.is_digit(2))
+    } else if let Some(rest) = match_.strip_prefix("0o") {
+        check_int_base(match_, rest, |char| char.is_digit(8))
+    } else if let Some(rest) = match_.strip_prefix("0x") {
+        check_int_base(match_, rest, |char| char.is_ascii_hexdigit())
     } else {
-        check_int_base(match_, match_, |char| char.is_digit(10))
+        check_int_base(match_, match_, |char| char.is_ascii_digit())
     }
 }
 
@@ -222,12 +222,13 @@ fn check_int_base<'input, F: Fn(char) -> bool>(
     match_no_prefix: &'input str,
     is_digit: F,
 ) -> Result<Token<'input>, CustomError> {
-    let mut chars = match_no_prefix.char_indices();
+    let chars = match_no_prefix.char_indices();
     let mut digit_seen = false;
 
     let mut suffix = "";
 
-    while let Some((char_idx, char)) = chars.next() {
+    for (char_idx, char) in chars {
+        #[allow(clippy::manual_range_contains)]
         if (char >= '0' && char <= '9')
             || (char >= 'a' && char <= 'f')
             || (char >= 'A' && char <= 'F')
@@ -253,7 +254,7 @@ fn check_int_base<'input, F: Fn(char) -> bool>(
     match suffix {
         "" | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "u128" | "i128"
         | "usize" | "isize" => Ok(Token::Lit(Lit::Int(match_full))),
-        _ => return Err(CustomError::InvalidIntSuffix),
+        _ => Err(CustomError::InvalidIntSuffix),
     }
 }
 
@@ -270,15 +271,10 @@ lexer! {
     let dec_digit = ['0'-'9'];
     let hex_digit = ['0'-'9' 'a'-'f' 'A'-'F'];
     let bin_digit = '0' | '1';
-    let digit = $oct_digit | $dec_digit | $hex_digit | $bin_digit;
     let int_suffix = ('u' | 'i') '8' | ('u' | 'i') "16" | ('u' | 'i') "32" |
             ('u' | 'i') "64" | ('u' | 'i') "128" | ('u' | 'i') "size";
 
     let id = $$XID_Start $$XID_Continue*;
-
-    let dec_literal = $dec_digit ($dec_digit | '_')*;
-    let float_exponent = ('e' | 'E') ('+' | '-')? ($dec_digit | '_')* $dec_digit ($dec_digit | '_')*;
-    let float_suffix = "f32" | "f64";
 
     let ascii_for_string = ($$ascii # ['"' '\\' '\r']);
     let byte_escape = ("\\x" $hex_digit $hex_digit) | "\\n" | "\\r" | "\\t" | "\\\\" | "\\0" | "\\\"" | "\\'";
@@ -507,6 +503,10 @@ lexer! {
         // float rather than integer with a suffix.
         //
 
+        let dec_literal = $dec_digit ($dec_digit | '_')*;
+        let float_exponent = ('e' | 'E') ('+' | '-')? ($dec_digit | '_')* $dec_digit ($dec_digit | '_')*;
+        let float_suffix = "f32" | "f64";
+
         $dec_literal '.' > ((_ # '.') | $) => |lexer| {
             let match_ = lexer.match_();
             lexer.return_(Token::Lit(Lit::Float(match_)))
@@ -534,6 +534,8 @@ lexer! {
         //
         // Integer literals
         //
+
+        let digit = $oct_digit | $dec_digit | $hex_digit | $bin_digit;
 
         ("0b" | "0o" | "0x")? ($digit | '_')* $id? =? |lexer| {
             let match_ = lexer.match_();
@@ -569,7 +571,7 @@ lexer! {
             }
         },
 
-        _,
+        _ => |lexer| lexer.continue_(),
     }
 
     rule String {
@@ -582,7 +584,7 @@ lexer! {
 
         '\r' => |lexer| lexer.switch(LexerRule::StringCR),
 
-        _,
+        _ => |lexer| lexer.continue_(),
     }
 
     rule StringEscape {
@@ -638,7 +640,7 @@ lexer! {
             }
         },
 
-        _,
+        _ => |lexer| lexer.continue_(),
     }
 
     rule RawStringMatchClosingHashes {
@@ -685,7 +687,7 @@ lexer! {
             }
         },
 
-        $$ascii,
+        $$ascii => |lexer| lexer.continue_(),
     },
 
     rule RawByteStringMatchClosingHashes {
