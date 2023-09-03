@@ -651,7 +651,7 @@ lexer! {
 
     rule RawStringMatchClosingHashes {
         '#' => |lexer| {
-            let mut state = lexer.state();
+            let state = lexer.state();
             state.closing_delimiters_seen += 1;
             if state.closing_delimiters_seen == state.raw_delimiter_size {
                 lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawString))
@@ -661,7 +661,7 @@ lexer! {
         },
 
         '"' => |lexer| {
-            let mut state = lexer.state();
+            let state = lexer.state();
             state.closing_delimiters_seen = 0;
             lexer.continue_()
         },
@@ -696,7 +696,7 @@ lexer! {
 
     rule RawByteStringMatchClosingHashes {
         '#' => |lexer| {
-            let mut state = lexer.state();
+            let state = lexer.state();
             state.closing_delimiters_seen += 1;
             if state.closing_delimiters_seen == state.raw_delimiter_size {
                 lexer.switch_and_return(LexerRule::Init, Token::Lit(Lit::RawByteString))
@@ -706,7 +706,7 @@ lexer! {
         },
 
         '"' => |lexer| {
-            let mut state = lexer.state();
+            let state = lexer.state();
             state.closing_delimiters_seen = 0;
             lexer.continue_()
         },
