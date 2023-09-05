@@ -580,7 +580,7 @@ lexer! {
             }
         },
 
-        _,
+        _ => |lexer| lexer.continue_(),
     }
 
     rule String {
@@ -592,7 +592,7 @@ lexer! {
 
         '\r' => |lexer| lexer.switch(LexerRule::StringCR),
 
-        _,
+        _ => |lexer| lexer.continue_(),
     }
 
     rule StringEscape {
@@ -646,7 +646,7 @@ lexer! {
             }
         },
 
-        _,
+        _ => |lexer| lexer.continue_(),
     }
 
     rule RawStringMatchClosingHashes {
