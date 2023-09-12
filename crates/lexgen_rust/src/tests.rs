@@ -415,3 +415,29 @@ fn int_float_range_confusion() {
     assert_eq!(next(&mut lexer), Some(Ok(Token::Lit(Lit::Int))),);
     assert_eq!(next(&mut lexer), Some(Ok(Token::Punc(Punc::DotDot))),);
 }
+
+#[test]
+fn string_lit_in_macro() {
+    let input = r#"panic!("Variable {:?} \
+defined multiple times", var)"#;
+    let lexer = Lexer::new_from_iter(input.chars());
+    for token in lexer {
+        println!("{:?}", token);
+    }
+}
+
+#[test]
+fn string_lit_buggy() {
+    // Test case below used to loop.
+    let input = r#"
+"
+\
+"
+\
+"
+"#;
+    let lexer = Lexer::new_from_iter(input.chars());
+    for token in lexer {
+        println!("{:?}", token);
+    }
+}

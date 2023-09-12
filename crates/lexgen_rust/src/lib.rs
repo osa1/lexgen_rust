@@ -1,3 +1,4 @@
+#[allow(non_snake_case)]
 use lexgen::lexer;
 pub use lexgen_util::Loc;
 
@@ -221,63 +222,6 @@ pub enum CustomError {
     IntWithoutDigit,
     InvalidDigitForBase,
 }
-
-/*
-// - Check that digits match the prefix (e.g. if the match starts with "0b", digits must be 1 or 0)
-// - Check that that is at least one digit
-// - Check that the suffix is valid ("i32", "u64", etc.)
-fn check_int<'input>(match_: &'input str) -> Result<Token, CustomError> {
-    if match_.starts_with("0b") {
-        check_int_base(match_, &match_[2..], |char| char.is_digit(2))
-    } else if match_.starts_with("0o") {
-        check_int_base(match_, &match_[2..], |char| char.is_digit(8))
-    } else if match_.starts_with("0x") {
-        check_int_base(match_, &match_[2..], |char| char.is_digit(16))
-    } else {
-        check_int_base(match_, match_, |char| char.is_digit(10))
-    }
-}
-
-fn check_int_base<F: Fn(char) -> bool>(
-    match_full: &str,
-    match_no_prefix: &str,
-    is_digit: F,
-) -> Result<Token, CustomError> {
-    let mut chars = match_no_prefix.char_indices();
-    let mut digit_seen = false;
-
-    let mut suffix = "";
-
-    while let Some((char_idx, char)) = chars.next() {
-        if (char >= '0' && char <= '9')
-            || (char >= 'a' && char <= 'f')
-            || (char >= 'A' && char <= 'F')
-        {
-            if is_digit(char) {
-                digit_seen = true;
-            } else {
-                return Err(CustomError::InvalidDigitForBase);
-            }
-        } else if char == '_' {
-            continue;
-        } else {
-            // Suffix starts
-            suffix = &match_no_prefix[char_idx..];
-            break;
-        }
-    }
-
-    if !digit_seen {
-        return Err(CustomError::IntWithoutDigit);
-    }
-
-    match suffix {
-        "" | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "u128" | "i128"
-        | "usize" | "isize" => Ok(Token::Lit(Lit::Int(match_full))),
-        _ => return Err(CustomError::InvalidIntSuffix),
-    }
-}
-*/
 
 lexer! {
     pub Lexer(LexerState) -> Token;
@@ -542,7 +486,7 @@ lexer! {
         // Integer literals
         //
 
-        ("0b" | "0o" | "0x")? ($digit | '_')* $id? =
+        ("0b" | "0o" | "0x")? ($digit | '_')+ $id? =
             Token::Lit(Lit::Int),
 
         //
